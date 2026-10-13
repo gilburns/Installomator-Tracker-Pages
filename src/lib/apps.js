@@ -3,7 +3,7 @@ import apps from '../data/apps.json';
 export { apps };
 
 // How many entries the "Recently updated" list on the home page shows.
-export const RECENT_COUNT = 60;
+export const RECENT_COUNT = 100;
 
 export const SOURCES = {
   tracker: 'https://github.com/gilburns/Installomator-Tracker',
