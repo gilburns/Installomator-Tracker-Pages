@@ -42,9 +42,6 @@ const path = Astro.url.pathname;
     </main>
     <footer class="site-footer">
       <div class="wrap">
-        <p class="patcher">
-          <a href={MAIN_SITE}>Third Party Patcher</a> keeps these apps up to date on your Macs automatically, with any MDM.
-        </p>
         <p>
           Tracking {apps.length.toLocaleString('en-US')} titles. Data last changed {formatDate(lastUpdated())}.
         </p>
@@ -52,6 +49,9 @@ const path = Astro.url.pathname;
           Built from <a href={SOURCES.tracker}>Installomator-Tracker</a>{' '}and{' '}
           <a href={SOURCES.metadata}>Installomator-Metadata</a>, using labels from{' '}
           <a href={SOURCES.installomator}>Installomator</a>.
+        </p>
+        <p class="patcher">
+          <a href={MAIN_SITE}>Third Party Patcher</a> keeps these apps up to date on your Macs automatically, with any MDM.
         </p>
       </div>
     </footer>
@@ -130,7 +130,7 @@ const path = Astro.url.pathname;
 
   .site-footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; padding: 20px 0 32px; }
   .site-footer p { margin: 4px 0; }
-  .site-footer .patcher { color: var(--text); font-size: 14px; margin-bottom: 8px; }
+  .site-footer .patcher { color: var(--text); font-size: 14px; margin-bottom: 8px; margin-top: 8px; }
 
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
   .icon { border-radius: 22%; flex: none; object-fit: contain; }
