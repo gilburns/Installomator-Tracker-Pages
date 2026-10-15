@@ -32,7 +32,7 @@ const path = Astro.url.pathname;
         <nav>
           <a href="/" aria-current={path === '/' ? 'page' : undefined}>Recent</a>
           <a href="/browse/" aria-current={path.startsWith('/browse') ? 'page' : undefined}>Browse</a>
-          <a class="external" href={INSTALLOMATOR_SITE}>Installomator<span class="arrow" aria-hidden="true"> ↗</span></a>
+          <a class="main-site" href={INSTALLOMATOR_SITE}>Installomator<span class="arrow" aria-hidden="true"> ↗</span></a>
           <a class="main-site" href={MAIN_SITE}><span class="long">Third Party </span>Patcher<span class="arrow" aria-hidden="true"> ↗</span></a>
         </nav>
       </div>
@@ -130,7 +130,7 @@ const path = Astro.url.pathname;
 
   .site-footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; padding: 20px 0 32px; }
   .site-footer p { margin: 4px 0; }
-  .site-footer .patcher { color: var(--text); font-size: 14px; margin-bottom: 8px; margin-top: 8px; }
+  .site-footer .patcher { color: var(--text); font-size: 14px; margin-bottom: 8px; margin-top: 15px; }
 
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
   .icon { border-radius: 22%; flex: none; object-fit: contain; }
