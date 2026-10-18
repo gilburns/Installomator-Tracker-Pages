@@ -1,16 +1,19 @@
 ---
 import Base from '../layouts/Base.astro';
 import AboutSite from '../components/AboutSite.astro';
-import { apps, appHref, categories, formatDate, iconSrc } from '../lib/apps.js';
+import { allTitles, appHref, categories, formatDate, iconSrc } from '../lib/apps.js';
 
 const cats = categories();
 
 // Several labels share an app name (e.g. pkg and dmg variants); show the label to tell them apart.
 const nameCounts = new Map();
-for (const a of apps) nameCounts.set(a.name, (nameCounts.get(a.name) ?? 0) + 1);
+for (const a of allTitles) nameCounts.set(a.name, (nameCounts.get(a.name) ?? 0) + 1);
+const failing = allTitles.filter((a) => a.failing).length;
+const working = allTitles.length - failing;
+
 const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].filter(Boolean).join(' · ') : a.publisher || a.label);
 ---
-<Base title="Browse" description="Search every tracked macOS title by name, publisher, keyword or category.">
+<Base title="Browse" description="Search every tracked macOS title by name, publisher, keyword or category, and see which labels are currently failing.">
   <div class="title-row">
     <h1>Browse titles</h1>
     <AboutSite />
@@ -21,13 +24,18 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
       <option value="">All categories</option>
       {cats.map((c) => <option value={c.name}>{c.name} ({c.count})</option>)}
     </select>
+    <select id="status" class="search" aria-label="Status">
+      <option value="">All statuses</option>
+      <option value="working">Working ({working})</option>
+      <option value="failing">Failing ({failing})</option>
+    </select>
     <select id="sort" class="search" aria-label="Sort">
       <option value="name">Name</option>
       <option value="updated">Recently updated</option>
     </select>
   </div>
   <p class="status">
-    <span id="count" class="muted" aria-live="polite">{apps.length} titles</span>
+    <span id="count" class="muted" aria-live="polite">{allTitles.length} titles</span>
     <span id="pub-filter" class="chip pub-chip" hidden>
       Publisher: <strong id="pub-name"></strong>
       <button id="pub-clear" type="button" aria-label="Show all publishers" title="Show all publishers">✕</button>
@@ -35,23 +43,34 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
   </p>
 
   <ul id="grid" class="grid">
-    {apps.map((a) => (
+    {allTitles.map((a) => (
       <li
         data-name={a.name.toLowerCase()}
         data-text={[a.name, a.label, a.publisher, a.category, a.keywords.join(' '), a.bundleId].join(' ').toLowerCase()}
         data-cat={a.category}
         data-pub={a.publisher}
-        data-updated={a.versions[0].timeStamp}
+        data-status={a.failing ? 'failing' : 'working'}
+        data-updated={a.versions[0]?.timeStamp ?? ''}
       >
-        <a class="card tile" href={appHref(a.label)}>
+        <a class:list={['card tile', { failing: a.failing }]} href={appHref(a.label)}>
           <img class="icon" src={iconSrc(a, 96)} alt="" width="48" height="48" loading="lazy" />
           <span class="info">
             <span class="name">{a.name}</span>
             <span class="muted small">{subtitle(a)}</span>
-            <span class="meta">
-              <span class="version">{a.versions[0].version}</span>
-              <span class="muted small">· {formatDate(a.versions[0].timeStamp)}</span>
-            </span>
+            {a.versions.length > 0 ? (
+              <span class="meta">
+                <span class="version">{a.versions[0].version}</span>
+                <span class="muted small">· {formatDate(a.versions[0].timeStamp)}</span>
+              </span>
+            ) : (
+              <span class="meta muted">No version captured yet</span>
+            )}
+            {a.failing && (
+              <span class="reason" title={`The tracker can't resolve this label: ${a.failing.reason}`}>
+                <svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M10 2.5 18.5 17h-17z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 8v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.4" r="1" fill="currentColor"/></svg>
+                <span>{a.versions.length > 0 ? 'Not updating' : 'Failing'}: {a.failing.reason}</span>
+              </span>
+            )}
           </span>
         </a>
       </li>
@@ -63,6 +82,7 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
 <script>
   const q = document.getElementById('q') as HTMLInputElement;
   const cat = document.getElementById('cat') as HTMLSelectElement;
+  const status = document.getElementById('status') as HTMLSelectElement;
   const sort = document.getElementById('sort') as HTMLSelectElement;
   const grid = document.getElementById('grid')!;
   const count = document.getElementById('count')!;
@@ -77,6 +97,7 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
   const params = new URLSearchParams(location.search);
   q.value = params.get('q') ?? '';
   cat.value = params.get('category') ?? '';
+  status.value = ['working', 'failing'].includes(params.get('status') ?? '') ? params.get('status')! : '';
   sort.value = params.get('sort') === 'updated' ? 'updated' : 'name';
   // Set by the publisher button on title pages; matches the publisher exactly.
   let publisher = params.get('publisher') ?? '';
@@ -86,6 +107,7 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
   function apply() {
     const terms = q.value.toLowerCase().split(/\s+/).filter(Boolean);
     const c = cat.value;
+    const s = status.value;
     let shown = 0;
     const order = sort.value === 'updated' ? byUpdated : byName;
     if (sort.value !== currentSort) {
@@ -94,7 +116,7 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
     }
     for (const el of order) {
       const text = el.dataset.text ?? '';
-      const match = (!c || el.dataset.cat === c) && (!publisher || el.dataset.pub === publisher) && terms.every((t) => text.includes(t));
+      const match = (!c || el.dataset.cat === c) && (!s || el.dataset.status === s) && (!publisher || el.dataset.pub === publisher) && terms.every((t) => text.includes(t));
       el.hidden = !match;
       if (match) shown++;
     }
@@ -106,6 +128,7 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
     const next = new URLSearchParams();
     if (q.value) next.set('q', q.value);
     if (c) next.set('category', c);
+    if (s) next.set('status', s);
     if (publisher) next.set('publisher', publisher);
     if (sort.value !== 'name') next.set('sort', sort.value);
     const qs = next.toString();
@@ -114,6 +137,7 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
 
   q.addEventListener('input', apply);
   cat.addEventListener('change', apply);
+  status.addEventListener('change', apply);
   sort.addEventListener('change', apply);
   document.getElementById('pub-clear')!.addEventListener('click', () => {
     publisher = '';
@@ -140,5 +164,9 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
   .small { font-size: 13px; }
   .meta { display: flex; gap: 6px; align-items: baseline; font-size: 13px; min-width: 0; }
   .meta .version { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile.failing .meta { color: var(--muted); }
+  .reason { display: flex; gap: 5px; align-items: center; margin-top: 2px; font-size: 13px; color: var(--warn); min-width: 0; }
+  .reason svg { flex: none; }
+  .reason span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .info > .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

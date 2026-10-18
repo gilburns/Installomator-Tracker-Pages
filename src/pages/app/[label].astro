@@ -1,19 +1,21 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { apps, formatDate, iconSrc, isUrl, metadataIconUrl, metadataPlistUrl } from '../../lib/apps.js';
+import { SOURCES, allTitles, formatDate, iconSrc, isUrl, metadataIconUrl, metadataPlistUrl } from '../../lib/apps.js';
 import CopyButton from '../../components/CopyButton.astro';
 
 export function getStaticPaths() {
-  return apps.map((app) => ({ params: { label: app.label }, props: { app } }));
+  return allTitles.map((app) => ({ params: { label: app.label }, props: { app } }));
 }
 
 const { app } = Astro.props;
+// Undefined for failing labels the tracker has never resolved.
 const latest = app.versions[0];
+const failing = app.failing;
 const linkLabels = { homepage: 'Website', documentation: 'Documentation', privacy: 'Privacy policy' };
 const hasIntel = app.versions.some((v) => v.downloadURLi386);
-const publisherCount = app.publisher ? apps.filter((a) => a.publisher === app.publisher).length : 0;
+const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === app.publisher).length : 0;
 ---
-<Base title={app.name} description={app.description || `Version history for ${app.name}.`}>
+<Base title={app.name} description={app.description || (latest ? `Version history for ${app.name}.` : `Tracker status for ${app.name}.`)}>
   <p class="crumbs"><a href="/browse/">Browse</a> / <a href={`/browse/?category=${encodeURIComponent(app.category)}`}>{app.category}</a></p>
 
   <section class="card head">
@@ -28,10 +30,15 @@ const publisherCount = app.publisher ? apps.filter((a) => a.publisher === app.pu
           </a>
         </p>
       )}
-      <p class="latest">
-        Latest <strong class="version">{latest.version}</strong>{' '}
-        <span class="muted">· seen {formatDate(latest.timeStamp)}</span>
-      </p>
+      {latest ? (
+        <p class="latest">
+          {failing ? 'Last captured' : 'Latest'} <strong class="version">{latest.version}</strong>{' '}
+          <span class="muted">· seen {formatDate(latest.timeStamp)}</span>
+          {failing && <> <span class="chip warn">Not updating</span></>}
+        </p>
+      ) : (
+        <p class="latest"><span class="chip warn">Failing</span> <span class="muted">No version captured yet</span></p>
+      )}
       {app.description && <p class="desc">{app.description} <CopyButton value={app.description} what="description" /></p>}
       {Object.keys(app.links).length > 0 && (
         <p class="links">
@@ -46,9 +53,9 @@ const publisherCount = app.publisher ? apps.filter((a) => a.publisher === app.pu
       <div><dt>Installomator label</dt><dd><code>{app.label}</code><CopyButton value={app.label} what="label" /></dd></div>
       <div><dt>Category</dt><dd><a href={`/browse/?category=${encodeURIComponent(app.category)}`}>{app.category}</a></dd></div>
       {app.bundleId && <div><dt>Bundle ID</dt><dd><code>{app.bundleId}</code><CopyButton value={app.bundleId} what="bundle ID" /></dd></div>}
-      {latest.teamID && <div><dt>Team ID</dt><dd><code>{latest.teamID}</code><CopyButton value={latest.teamID} what="team ID" /></dd></div>}
-      {latest.type && <div><dt>Package type</dt><dd>{latest.type}</dd></div>}
-      {app.blockingProcesses.length > 0 && <div><dt>Blocking processes</dt><dd>{app.blockingProcesses.join(', ')}</dd></div>}
+      {latest?.teamID && <div><dt>Team ID</dt><dd><code>{latest.teamID}</code><CopyButton value={latest.teamID} what="team ID" /></dd></div>}
+      {latest?.type && <div><dt>Package type</dt><dd>{latest.type}</dd></div>}
+      {app.blockingProcesses?.length > 0 && <div><dt>Blocking processes</dt><dd>{app.blockingProcesses.join(', ')}</dd></div>}
     </dl>
     {app.keywords.length > 0 && (
       <p class="keywords">
@@ -74,7 +81,30 @@ const publisherCount = app.publisher ? apps.filter((a) => a.publisher === app.pu
     )}
   </section>
 
-  <section>
+  {failing && (
+    <section class="card failure" aria-labelledby="failure-title">
+      <h2 id="failure-title">
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M10 2.5 18.5 17h-17z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 8v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.4" r="1" fill="currentColor"/></svg>
+        {latest ? 'New versions aren\'t being recorded' : 'The tracker can\'t resolve this label'}
+      </h2>
+      <p>
+        {latest
+          ? 'The tracker currently can\'t resolve this label, so new versions aren\'t being captured. The history below may be out of date, and the newest download link may no longer work.'
+          : 'The tracker has never resolved this label, so no versions have been recorded yet. Its history will start here once the label resolves.'}
+      </p>
+      <dl>
+        <div><dt>Reason</dt><dd><code>{failing.reason}</code></dd></div>
+        {failing.since && <div><dt>Failing as of</dt><dd title={failing.since}>{formatDate(failing.since)}</dd></div>}
+        {latest && <div><dt>Last new version captured</dt><dd><span class="version">{latest.version}</span> on {formatDate(latest.timeStamp)}</dd></div>}
+      </dl>
+      <p class="muted small">
+        Fixes to the label itself are welcome in <a href={SOURCES.installomator}>Installomator</a>.
+        The tracker retries failing labels on every run.
+      </p>
+    </section>
+  )}
+
+  {latest && <section>
     <h2>Version history</h2>
     <p class="muted note">
       {app.versions.length} {app.versions.length === 1 ? 'version' : 'versions'} recorded.
@@ -126,7 +156,7 @@ const publisherCount = app.publisher ? apps.filter((a) => a.publisher === app.pu
         </tbody>
       </table>
     </div>
-  </section>
+  </section>}
 </Base>
 
 <script>
@@ -183,6 +213,14 @@ const publisherCount = app.publisher ? apps.filter((a) => a.publisher === app.pu
   .small { font-size: 13px; }
 
   h2 { font-size: 20px; }
+  .failure { margin: 0 0 28px; padding: 16px 20px; border-left: 3px solid var(--warn); }
+  .failure h2 { display: flex; align-items: center; gap: 8px; color: var(--warn); font-size: 17px; }
+  .failure h2 svg { flex: none; }
+  .failure p { margin: 0 0 12px; max-width: 80ch; }
+  .failure p:last-child { margin: 0; }
+  .failure dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px 24px; margin: 0 0 12px; }
+  .failure dt { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .failure dd { margin: 2px 0 0; overflow-wrap: anywhere; }
   .note { margin: 0 0 10px; font-size: 13px; max-width: 80ch; }
   .callout { margin: 0 0 12px; padding: 12px 16px; font-size: 14px; border-left: 3px solid var(--accent); }
   .table-wrap { overflow-x: auto; }

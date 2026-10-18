@@ -1,6 +1,12 @@
 import apps from '../data/apps.json';
+import failedOnly from '../data/failed.json';
 
-export { apps };
+// apps: every label with version history. allTitles adds the failing labels the
+// tracker has never resolved (versions is empty for those); Browse and the title
+// pages use allTitles, everything built on versions uses apps.
+const allTitles = [...apps, ...failedOnly].sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+
+export { apps, allTitles };
 
 // How many entries the "Recently updated" list on the home page shows.
 export const RECENT_COUNT = 100;
@@ -40,7 +46,7 @@ export function recentReleases(limit = RECENT_COUNT) {
 
 export function categories() {
   const counts = new Map();
-  for (const a of apps) counts.set(a.category, (counts.get(a.category) ?? 0) + 1);
+  for (const a of allTitles) counts.set(a.category, (counts.get(a.category) ?? 0) + 1);
   return [...counts].sort((a, b) => a[0].localeCompare(b[0])).map(([name, count]) => ({ name, count }));
 }
 

@@ -69,6 +69,8 @@ const path = Astro.url.pathname;
     --accent-soft: #e6eeff;
     --new: #0f7b4b;
     --new-soft: #dcf5e8;
+    --warn: #a14f05;
+    --warn-soft: #fdf0dc;
     --radius: 12px;
     color-scheme: light dark;
   }
@@ -83,6 +85,8 @@ const path = Astro.url.pathname;
       --accent-soft: #1d2a45;
       --new: #5dd39e;
       --new-soft: #173326;
+      --warn: #f2b45a;
+      --warn-soft: #3a2a12;
     }
   }
   * { box-sizing: border-box; }
@@ -140,6 +144,7 @@ const path = Astro.url.pathname;
     background: var(--accent-soft); color: var(--accent); white-space: nowrap;
   }
   .chip.new { background: var(--new-soft); color: var(--new); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
   .version { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 
   .search {
