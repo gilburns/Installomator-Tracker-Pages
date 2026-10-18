@@ -1,12 +1,13 @@
 #!/usr/bin/env node
-// Merges Installomator-Tracker version history with Installomator-Metadata
-// plists/icons into the data the site is built from.
+// Merges Installomator-Tracker version history and failed labels with
+// Installomator-Metadata plists/icons into the data the site is built from.
 //
 //   TRACKER_DIR   checkout of gilburns/Installomator-Tracker   (default: data-src/tracker)
 //   METADATA_DIR  checkout of gilburns/Installomator-Metadata  (default: data-src/metadata)
 //
 // Writes:
 //   src/data/apps.json          every tracked label, merged, versions newest first
+//   src/data/failed.json        failing labels with no version history yet
 //   public/data/search.json     compact index used by the in-browser search
 //   public/icons/{96,256}/<label>.webp  resized icons (skipped when already up to date)
 
@@ -53,6 +54,48 @@ async function buildIcon(label) {
     }
   }
   return true;
+}
+
+// Name, publisher, links and so on from a label's Installomator-Metadata plist.
+function metadataFields(label, plistData, fallbackName) {
+  const md = plistData ?? {};
+  const links = {
+    homepage: str(md.Homepage),
+    documentation: str(md.Documentation),
+    privacy: str(md.Privacy),
+  };
+  for (const k of Object.keys(links)) if (!isUrl(links[k])) delete links[k];
+  return {
+    label,
+    name: str(md.AppName) || fallbackName || label,
+    publisher: str(md.Publisher),
+    category: str(md.Category) || 'Uncategorized',
+    description: str(md.Description),
+    keywords: str(md.Keywords).split(',').map((k) => k.trim()).filter(Boolean),
+    bundleId: str(md.AppID),
+    links,
+    hasMetadata: Boolean(plistData),
+  };
+}
+
+// Labels the tracker currently can't resolve, from failed_labels.json:
+// label -> { reason, since }. "since" is when the current failure was first recorded.
+async function readFailed() {
+  const file = path.join(trackerDir, 'failed_labels.json');
+  if (!(await exists(file))) {
+    console.warn('warn: failed_labels.json not found; no labels will be shown as failing.');
+    return new Map();
+  }
+  try {
+    const { failed = {} } = JSON.parse(await fs.readFile(file, 'utf8'));
+    return new Map(Object.entries(failed).map(([label, f]) => [label, {
+      reason: str(f.reason) || 'unknown error',
+      since: str(f.firstSeen),
+    }]));
+  } catch (err) {
+    console.warn(`warn: could not read failed_labels.json: ${err.message}`);
+    return new Map();
+  }
 }
 
 // Run an async fn over items with bounded concurrency.
@@ -105,6 +148,7 @@ async function main() {
 
   const files = (await fs.readdir(detailsDir)).filter((f) => f.endsWith('.json')).sort();
   const trackedSince = trackedSinceDates();
+  const failed = await readFailed();
 
   const apps = (await mapLimit(files, 8, async (file) => {
     const label = file.replace(/\.json$/, '');
@@ -118,7 +162,6 @@ async function main() {
     if (!Array.isArray(history) || history.length === 0) return null;
 
     const plistData = await readMetadata(label);
-    const md = plistData ?? {};
     const hasIcon = await buildIcon(label);
 
     // Static-URL labels: the download link always serves the latest version.
@@ -145,24 +188,10 @@ async function main() {
     })).reverse();
 
     const latest = history[history.length - 1];
-    const links = {
-      homepage: str(md.Homepage),
-      documentation: str(md.Documentation),
-      privacy: str(md.Privacy),
-    };
-    for (const k of Object.keys(links)) if (!isUrl(links[k])) delete links[k];
-
     return {
-      label,
-      name: str(md.AppName) || str(latest.name) || label,
-      publisher: str(md.Publisher),
-      category: str(md.Category) || 'Uncategorized',
-      description: str(md.Description),
-      keywords: str(md.Keywords).split(',').map((k) => k.trim()).filter(Boolean),
-      bundleId: str(md.AppID),
-      links,
+      ...metadataFields(label, plistData, str(latest.name)),
       hasIcon,
-      hasMetadata: Boolean(plistData),
+      failing: failed.get(label),
       staticUrl,
       historyReplaced,
       trackedSince: since,
@@ -174,6 +203,18 @@ async function main() {
   apps.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
 
   await fs.writeFile(path.join(root, 'src/data/apps.json'), JSON.stringify(apps));
+
+  // Failing labels the tracker has never resolved: no versions, but they still
+  // get a card and a title page so the reason is visible.
+  const tracked = new Set(apps.map((a) => a.label));
+  const failedOnly = await mapLimit([...failed.keys()].filter((l) => !tracked.has(l)).sort(), 8, async (label) => ({
+    ...metadataFields(label, await readMetadata(label)),
+    hasIcon: await buildIcon(label),
+    failing: failed.get(label),
+    versions: [],
+  }));
+  failedOnly.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+  await fs.writeFile(path.join(root, 'src/data/failed.json'), JSON.stringify(failedOnly));
 
   const search = apps.map((a) => ({
     l: a.label,
@@ -191,7 +232,9 @@ async function main() {
   const withIcon = apps.filter((a) => a.hasIcon).length;
   const entries = apps.reduce((n, a) => n + a.versions.length, 0);
   const staticCount = apps.filter((a) => a.staticUrl).length;
+  const failingTracked = apps.filter((a) => a.failing).length;
   console.log(`Built ${apps.length} titles, ${entries} versions (${withMeta} with metadata, ${withIcon} with icons, ${staticCount} with a static download URL).`);
+  console.log(`${failed.size} failing labels: ${failingTracked} with version history, ${failedOnly.length} without.`);
 }
 
 main().catch((err) => {
