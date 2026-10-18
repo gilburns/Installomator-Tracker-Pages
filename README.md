@@ -1,6 +1,6 @@
 # Third-Party-Patcher-Tracker
 
-Source for [tracker.thirdpartypatcher.org](https://tracker.thirdpartypatcher.org): a searchable version history for every macOS title tracked through [Installomator](https://github.com/Installomator/Installomator) labels.
+Source for [installomatortracker.org](https://installomatortracker.org): a searchable version history for every macOS title tracked through [Installomator](https://github.com/Installomator/Installomator) labels.
 
 The site is static. It's rebuilt from two data repos and published with GitHub Pages:
 
