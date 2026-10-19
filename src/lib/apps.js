@@ -22,6 +22,10 @@ const METADATA_RAW = 'https://raw.githubusercontent.com/gilburns/Installomator-M
 export const metadataPlistUrl = (label) => `${METADATA_RAW}/Metadata/${encodeURIComponent(label)}.plist`;
 export const metadataIconUrl = (label) => `${METADATA_RAW}/Icons/${encodeURIComponent(label)}.png`;
 
+// The label's source in Installomator, opened on GitHub rather than downloaded.
+export const labelSourceUrl = (label) =>
+  `${SOURCES.installomator}/blob/main/fragments/labels/${encodeURIComponent(label)}.sh`;
+
 export const isUrl = (v) => typeof v === 'string' && /^https?:\/\//i.test(v);
 
 export const iconSrc = (app, size = 96) =>

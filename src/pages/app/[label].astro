@@ -1,6 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { SOURCES, allTitles, formatDate, iconSrc, isUrl, metadataIconUrl, metadataPlistUrl } from '../../lib/apps.js';
+import { SOURCES, allTitles, formatDate, iconSrc, isUrl, labelSourceUrl, metadataIconUrl, metadataPlistUrl } from '../../lib/apps.js';
 import CopyButton from '../../components/CopyButton.astro';
 
 export function getStaticPaths() {
@@ -62,23 +62,28 @@ const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === a
         {app.keywords.map((k) => <a class="chip" href={`/browse/?q=${encodeURIComponent(k)}`}>{k}</a>)}
       </p>
     )}
-    {(app.hasMetadata || app.hasIcon) && (
-      <p class="files">
-        {app.hasMetadata && (
-          <a class="file-btn" href={metadataPlistUrl(app.label)} data-save-as={`${app.label}.plist`}>
-            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Metadata plist
-          </a>
-        )}
-        {app.hasIcon && (
-          <a class="file-btn" href={metadataIconUrl(app.label)} data-save-as={`${app.label}.png`}>
-            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Original icon (PNG)
-          </a>
-        )}
-        <span class="muted small">From <a href="https://github.com/gilburns/Installomator-Metadata">Installomator-Metadata</a></span>
-      </p>
-    )}
+    <p class="files">
+      {app.hasMetadata && (
+        <a class="file-btn" href={metadataPlistUrl(app.label)} data-save-as={`${app.label}.plist`}>
+          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Metadata plist
+        </a>
+      )}
+      {app.hasIcon && (
+        <a class="file-btn" href={metadataIconUrl(app.label)} data-save-as={`${app.label}.png`}>
+          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Original icon (PNG)
+        </a>
+      )}
+      <a class="file-btn" href={labelSourceUrl(app.label)} rel="noopener" title="View this label's script in the Installomator repo on GitHub">
+        <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M11 4h5v5m0-5-7 7M8.5 5H5.5A1.5 1.5 0 0 0 4 6.5v8A1.5 1.5 0 0 0 5.5 16h8a1.5 1.5 0 0 0 1.5-1.5v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Label script
+      </a>
+      <span class="muted small">
+        {(app.hasMetadata || app.hasIcon) && <>From <a href={SOURCES.metadata}>Installomator-Metadata</a> and <a href={SOURCES.installomator}>Installomator</a></>}
+        {!app.hasMetadata && !app.hasIcon && <>From <a href={SOURCES.installomator}>Installomator</a></>}
+      </span>
+    </p>
   </section>
 
   {failing && (
