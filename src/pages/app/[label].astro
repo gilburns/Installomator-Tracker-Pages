@@ -103,8 +103,9 @@ const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === a
         {latest && <div><dt>Last new version captured</dt><dd><span class="version">{latest.version}</span> on {formatDate(latest.timeStamp)}</dd></div>}
       </dl>
       <p class="muted small">
+        Failing labels are retried when Installomator's label files change, and at least every 7 days.
+        The <a href={`${SOURCES.tracker}#faq`}>Installomator-Tracker FAQ</a> explains common failures.
         Fixes to the label itself are welcome in <a href={SOURCES.installomator}>Installomator</a>.
-        The tracker retries failing labels on every run.
       </p>
     </section>
   )}
