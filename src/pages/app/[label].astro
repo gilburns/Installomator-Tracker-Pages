@@ -13,6 +13,19 @@ const latest = app.versions[0];
 const failing = app.failing;
 const linkLabels = { homepage: 'Website', documentation: 'Documentation', privacy: 'Privacy policy' };
 const hasIntel = app.versions.some((v) => v.downloadURLi386);
+// Signed links are checked against the build time; the site rebuilds twice a day.
+const builtAt = new Date().toISOString();
+const isSigned = (v) => v.signedUntil !== undefined;
+const expiryTime = (iso) => `${formatDate(iso)} at ${iso.slice(11, 16)} UTC`;
+const signedLabel = (v) => (!v.signedUntil ? 'Expiring link' : v.signedUntil < builtAt ? 'Expired link' : 'Expires soon');
+const signedTitle = (v) =>
+  `The vendor issues short-lived signed download links. ${
+    !v.signedUntil
+      ? 'This one has most likely expired.'
+      : v.signedUntil < builtAt
+        ? `This one expired ${expiryTime(v.signedUntil)} and no longer works.`
+        : `This one stops working ${expiryTime(v.signedUntil)}.`
+  }`;
 const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === app.publisher).length : 0;
 ---
 <Base title={app.name} description={app.description || (latest ? `Version history for ${app.name}.` : `Tracker status for ${app.name}.`)}>
@@ -129,6 +142,13 @@ const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === a
             </>}
       </div>
     )}
+    {isSigned(latest) && (
+      <div class="card callout warn">
+        <strong>This label's download links expire.</strong>{' '}
+        The vendor's server hands out a signed link that only works for a short time, often a few hours,
+        so the links recorded here have most likely expired. Run the label with Installomator to get a current one.
+      </div>
+    )}
     <div class="card table-wrap">
       <table>
         <thead>
@@ -152,6 +172,9 @@ const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === a
                 )}
                 {isUrl(v.downloadURLi386) && (
                   <a href={v.downloadURLi386} rel="nofollow noopener">Intel{v.type && ` (${v.type})`}</a>
+                )}
+                {isSigned(v) && (isUrl(v.downloadURL) || isUrl(v.downloadURLi386)) && (
+                  <span class="chip warn" title={signedTitle(v)}>{signedLabel(v)}</span>
                 )}
                 {!isUrl(v.downloadURL) && !isUrl(v.downloadURLi386) && (
                   <span class="muted" title="The download link now serves a newer version">No longer available</span>
@@ -229,6 +252,7 @@ const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === a
   .failure dd { margin: 2px 0 0; overflow-wrap: anywhere; }
   .note { margin: 0 0 10px; font-size: 13px; max-width: 80ch; }
   .callout { margin: 0 0 12px; padding: 12px 16px; font-size: 14px; border-left: 3px solid var(--accent); }
+  .callout.warn { border-left-color: var(--warn); }
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
   th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
@@ -237,5 +261,5 @@ const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === a
   td.version { font-weight: 500; max-width: 360px; }
   td.version .chip { margin-left: 6px; }
   .nowrap { white-space: nowrap; }
-  .downloads { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .downloads { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
 </style>

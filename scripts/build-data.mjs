@@ -56,6 +56,40 @@ async function buildIcon(label) {
   return true;
 }
 
+// Signed download links that the vendor's server issued for one request and
+// that stop working after a short time (CloudFront, S3, Google Cloud Storage,
+// GitHub release assets, Akamai, CDN77, Oracle). Returns null for an ordinary
+// link, otherwise { expires } with the expiry as ISO time, or '' when the link
+// doesn't say.
+const epoch = (s) => new Date(Number(s) * 1000).toISOString();
+const amzTime = (date, seconds) => {
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/.exec(date ?? '');
+  if (!m || !/^\d+$/.test(seconds ?? '')) return '';
+  return new Date(Date.UTC(m[1], m[2] - 1, m[3], m[4], m[5], m[6]) + Number(seconds) * 1000).toISOString();
+};
+function signedUrl(url) {
+  let q;
+  try {
+    // Some labels record the query with HTML-escaped ampersands.
+    q = new URL(url.replace(/&amp;/g, '&')).searchParams;
+  } catch {
+    return null;
+  }
+  const p = new Map([...q].map(([k, v]) => [k.toLowerCase(), v]));
+  const num = (v, re) => re.exec(v ?? '')?.[1];
+  let expires;
+  if (p.has('x-amz-signature')) expires = amzTime(p.get('x-amz-date'), p.get('x-amz-expires'));
+  else if (p.has('x-goog-signature')) expires = amzTime(p.get('x-goog-date'), p.get('x-goog-expires'));
+  else if (p.has('signature') && p.has('expires')) expires = num(p.get('expires'), /^(\d{9,})$/);
+  else if (p.has('sig') && p.has('se')) expires = Number.isNaN(Date.parse(p.get('se'))) ? '' : new Date(p.get('se')).toISOString();
+  else if (p.has('__token__') || p.has('hdnea')) expires = num(p.get('__token__') ?? p.get('hdnea'), /(?:^|~)exp=(\d{9,})/);
+  else if (num(p.get('secure'), /,(\d{9,})$/)) expires = num(p.get('secure'), /,(\d{9,})$/);
+  else if (num(p.get('authparam'), /^(\d{9,})_/)) expires = num(p.get('authparam'), /^(\d{9,})_/);
+  else return null;
+  if (expires && /^\d+$/.test(expires)) expires = epoch(expires);
+  return { expires: expires || '' };
+}
+
 // Name, publisher, links and so on from a label's Installomator-Metadata plist.
 function metadataFields(label, plistData, fallbackName) {
   const md = plistData ?? {};
@@ -177,15 +211,20 @@ async function main() {
     const staticUrl = history.slice(0, -1).some((e) => !str(e.downloadURL)) || (historyReplaced && history.length === 1);
 
     // Tracker files are oldest to newest; the site wants newest first.
-    const versions = history.map((e, i) => ({
-      version: str(e.appNewVersion),
-      timeStamp: str(e.timeStamp),
-      type: str(e.type),
-      downloadURL: str(e.downloadURL),
-      downloadURLi386: str(e.downloadURLi386) || undefined,
-      teamID: str(e.expectedTeamID),
-      firstSeen: i === 0 && !historyReplaced,
-    })).reverse();
+    const versions = history.map((e, i) => {
+      const signed = signedUrl(str(e.downloadURL)) ?? signedUrl(str(e.downloadURLi386));
+      return {
+        version: str(e.appNewVersion),
+        timeStamp: str(e.timeStamp),
+        type: str(e.type),
+        downloadURL: str(e.downloadURL),
+        downloadURLi386: str(e.downloadURLi386) || undefined,
+        teamID: str(e.expectedTeamID),
+        firstSeen: i === 0 && !historyReplaced,
+        // Expiry of a signed, short-lived download link ('' when unknown).
+        signedUntil: signed ? signed.expires : undefined,
+      };
+    }).reverse();
 
     const latest = history[history.length - 1];
     return {
@@ -233,7 +272,8 @@ async function main() {
   const entries = apps.reduce((n, a) => n + a.versions.length, 0);
   const staticCount = apps.filter((a) => a.staticUrl).length;
   const failingTracked = apps.filter((a) => a.failing).length;
-  console.log(`Built ${apps.length} titles, ${entries} versions (${withMeta} with metadata, ${withIcon} with icons, ${staticCount} with a static download URL).`);
+  const signedCount = apps.filter((a) => a.versions.some((v) => v.signedUntil !== undefined)).length;
+  console.log(`Built ${apps.length} titles, ${entries} versions (${withMeta} with metadata, ${withIcon} with icons, ${staticCount} with a static download URL, ${signedCount} with expiring signed links).`);
   console.log(`${failed.size} failing labels: ${failingTracked} with version history, ${failedOnly.length} without.`);
 }
 
