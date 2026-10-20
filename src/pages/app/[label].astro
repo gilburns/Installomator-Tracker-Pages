@@ -1,6 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
-import { SOURCES, allTitles, formatDate, iconSrc, isUrl, labelSourceUrl, metadataIconUrl, metadataPlistUrl } from '../../lib/apps.js';
+import { SOURCES, allTitles, formatDate, iconSrc, isSkipped, isUrl, labelSourceUrl, metadataIconUrl, metadataPlistUrl } from '../../lib/apps.js';
 import CopyButton from '../../components/CopyButton.astro';
 
 export function getStaticPaths() {
@@ -11,6 +11,7 @@ const { app } = Astro.props;
 // Undefined for failing labels the tracker has never resolved.
 const latest = app.versions[0];
 const failing = app.failing;
+const skipped = isSkipped(app);
 const linkLabels = { homepage: 'Website', documentation: 'Documentation', privacy: 'Privacy policy' };
 const hasIntel = app.versions.some((v) => v.downloadURLi386);
 // Signed links are checked against the build time; the site rebuilds twice a day.
@@ -47,10 +48,10 @@ const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === a
         <p class="latest">
           {failing ? 'Last captured' : 'Latest'} <strong class="version">{latest.version}</strong>{' '}
           <span class="muted">· seen {formatDate(latest.timeStamp)}</span>
-          {failing && <> <span class="chip warn">Not updating</span></>}
+          {failing && (skipped ? <> <span class="chip">Skipped</span></> : <> <span class="chip warn">Not updating</span></>)}
         </p>
       ) : (
-        <p class="latest"><span class="chip warn">Failing</span> <span class="muted">No version captured yet</span></p>
+        <p class="latest">{skipped ? <span class="chip">Skipped</span> : <span class="chip warn">Failing</span>} <span class="muted">No version captured yet</span></p>
       )}
       {app.description && <p class="desc">{app.description} <CopyButton value={app.description} what="description" /></p>}
       {Object.keys(app.links).length > 0 && (
@@ -99,7 +100,28 @@ const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === a
     </p>
   </section>
 
-  {failing && (
+  {failing && skipped && (
+    <section class="card failure skipped" aria-labelledby="failure-title">
+      <h2 id="failure-title">
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10 9v4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="6.2" r="1" fill="currentColor"/></svg>
+        The tracker skips this label
+      </h2>
+      <p>
+        This label doesn't set <code>appNewVersion</code>, so the tracker has no version to compare and skips it.
+        {latest ? ' The history below stops at the last version captured before that.' : ' Its history will start here if the label is changed to set one.'}
+      </p>
+      <dl>
+        <div><dt>Reason</dt><dd><code>{failing.reason}</code></dd></div>
+        {failing.since && <div><dt>Skipped as of</dt><dd title={failing.since}>{formatDate(failing.since)}</dd></div>}
+        {latest && <div><dt>Last new version captured</dt><dd><span class="version">{latest.version}</span> on {formatDate(latest.timeStamp)}</dd></div>}
+      </dl>
+      <p class="muted small">
+        Adding <code>appNewVersion</code> to the label in <a href={SOURCES.installomator}>Installomator</a> lets the tracker record its versions.
+      </p>
+    </section>
+  )}
+
+  {failing && !skipped && (
     <section class="card failure" aria-labelledby="failure-title">
       <h2 id="failure-title">
         <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M10 2.5 18.5 17h-17z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 8v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.4" r="1" fill="currentColor"/></svg>
@@ -245,6 +267,8 @@ const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === a
   .failure { margin: 0 0 28px; padding: 16px 20px; border-left: 3px solid var(--warn); }
   .failure h2 { display: flex; align-items: center; gap: 8px; color: var(--warn); font-size: 17px; }
   .failure h2 svg { flex: none; }
+  .failure.skipped { border-left-color: var(--border); }
+  .failure.skipped h2 { color: var(--text); }
   .failure p { margin: 0 0 12px; max-width: 80ch; }
   .failure p:last-child { margin: 0; }
   .failure dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px 24px; margin: 0 0 12px; }

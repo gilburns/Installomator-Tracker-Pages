@@ -1,15 +1,15 @@
 ---
 import Base from '../layouts/Base.astro';
 import AboutSite from '../components/AboutSite.astro';
-import { allTitles, appHref, categories, formatDate, iconSrc } from '../lib/apps.js';
+import { allTitles, appHref, categories, formatDate, iconSrc, isSkipped, statusOf } from '../lib/apps.js';
 
 const cats = categories();
 
 // Several labels share an app name (e.g. pkg and dmg variants); show the label to tell them apart.
 const nameCounts = new Map();
 for (const a of allTitles) nameCounts.set(a.name, (nameCounts.get(a.name) ?? 0) + 1);
-const failing = allTitles.filter((a) => a.failing).length;
-const working = allTitles.length - failing;
+const statusCounts = { working: 0, failing: 0, skipped: 0 };
+for (const a of allTitles) statusCounts[statusOf(a)]++;
 
 const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].filter(Boolean).join(' · ') : a.publisher || a.label);
 ---
@@ -26,8 +26,9 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
     </select>
     <select id="status" class="search" aria-label="Status">
       <option value="">All statuses</option>
-      <option value="working">Working ({working})</option>
-      <option value="failing">Failing ({failing})</option>
+      <option value="working">Working ({statusCounts.working})</option>
+      <option value="failing">Failing ({statusCounts.failing})</option>
+      <option value="skipped">Skipped ({statusCounts.skipped})</option>
     </select>
     <select id="sort" class="search" aria-label="Sort">
       <option value="name">Name</option>
@@ -49,7 +50,7 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
         data-text={[a.name, a.label, a.publisher, a.category, a.keywords.join(' '), a.bundleId].join(' ').toLowerCase()}
         data-cat={a.category}
         data-pub={a.publisher}
-        data-status={a.failing ? 'failing' : 'working'}
+        data-status={statusOf(a)}
         data-updated={a.versions[0]?.timeStamp ?? ''}
       >
         <a class:list={['card tile', { failing: a.failing }]} href={appHref(a.label)}>
@@ -65,12 +66,17 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
             ) : (
               <span class="meta muted">No version captured yet</span>
             )}
-            {a.failing && (
+            {a.failing && (isSkipped(a) ? (
+              <span class="reason skipped" title="The tracker skips this label because it has no appNewVersion to compare">
+                <svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M10 9v4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="6.2" r="1" fill="currentColor"/></svg>
+                <span>Skipped: {a.failing.reason}</span>
+              </span>
+            ) : (
               <span class="reason" title={`The tracker can't resolve this label: ${a.failing.reason}`}>
                 <svg viewBox="0 0 20 20" width="13" height="13" aria-hidden="true"><path d="M10 2.5 18.5 17h-17z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 8v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="10" cy="14.4" r="1" fill="currentColor"/></svg>
                 <span>{a.versions.length > 0 ? 'Not updating' : 'Failing'}: {a.failing.reason}</span>
               </span>
-            )}
+            ))}
           </span>
         </a>
       </li>
@@ -97,7 +103,7 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
   const params = new URLSearchParams(location.search);
   q.value = params.get('q') ?? '';
   cat.value = params.get('category') ?? '';
-  status.value = ['working', 'failing'].includes(params.get('status') ?? '') ? params.get('status')! : '';
+  status.value = ['working', 'failing', 'skipped'].includes(params.get('status') ?? '') ? params.get('status')! : '';
   sort.value = params.get('sort') === 'updated' ? 'updated' : 'name';
   // Set by the publisher button on title pages; matches the publisher exactly.
   let publisher = params.get('publisher') ?? '';
@@ -166,6 +172,7 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
   .meta .version { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tile.failing .meta { color: var(--muted); }
   .reason { display: flex; gap: 5px; align-items: center; margin-top: 2px; font-size: 13px; color: var(--warn); min-width: 0; }
+  .reason.skipped { color: var(--muted); }
   .reason svg { flex: none; }
   .reason span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .info > .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

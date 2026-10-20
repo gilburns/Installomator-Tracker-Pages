@@ -8,6 +8,13 @@ const allTitles = [...apps, ...failedOnly].sort((a, b) => a.name.localeCompare(b
 
 export { apps, allTitles };
 
+// Labels that don't set appNewVersion have no version to track, so the tracker
+// skips them. They're recorded as failing but shown as skipped.
+export const isSkipped = (app) => app.failing?.reason === 'label does not set appNewVersion';
+
+// 'working', 'failing' or 'skipped'.
+export const statusOf = (app) => (!app.failing ? 'working' : isSkipped(app) ? 'skipped' : 'failing');
+
 // How many entries the "Recently updated" list on the home page shows.
 export const RECENT_COUNT = 100;
 

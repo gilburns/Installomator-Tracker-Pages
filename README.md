@@ -14,8 +14,8 @@ The site is static. It's rebuilt from two data repos and published with GitHub P
 ## Pages
 
 - `/` shows the most recent versions found, grouped by day (`RECENT_COUNT` in `src/lib/apps.js`).
-- `/browse/` lists every title with search by name, publisher, keyword or label and filters for category, status (working or failing) and sort. Filters are kept in the URL, for example `/browse/?category=Web%20Browsers` or `/browse/?status=failing`.
-- `/app/<label>/` shows one title's details and its full version history. Failing labels also show the failure reason; those the tracker has never resolved get a page with no version history. Signed download links that expire (CloudFront, S3, Google Cloud Storage, GitHub release assets, Akamai, CDN77, Oracle) are marked as expired or expiring.
+- `/browse/` lists every title with search by name, publisher, keyword or label and filters for category, status (working, failing or skipped) and sort. Filters are kept in the URL, for example `/browse/?category=Web%20Browsers` or `/browse/?status=failing`.
+- `/app/<label>/` shows one title's details and its full version history. Failing labels also show the failure reason, and labels that don't set `appNewVersion` are shown as skipped rather than failing; those the tracker has never resolved get a page with no version history. Signed download links that expire (CloudFront, S3, Google Cloud Storage, GitHub release assets, Akamai, CDN77, Oracle) are marked as expired or expiring.
 - `/data/search.json` is a compact index of every title and its latest version.
 - `/data/label_status.csv` is the tracker's current status of every label, linked from the footer for download.
 
