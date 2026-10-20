@@ -1,5 +1,5 @@
 ---
-import { SOURCES, apps, formatDate, lastUpdated } from '../lib/apps.js';
+import { SOURCES, allTitles, formatDate, lastUpdated } from '../lib/apps.js';
 
 interface Props {
   title?: string;
@@ -43,7 +43,7 @@ const path = Astro.url.pathname;
     <footer class="site-footer">
       <div class="wrap">
         <p>
-          Tracking {apps.length.toLocaleString('en-US')} titles. Data last changed {formatDate(lastUpdated())}.
+          Tracking {allTitles.length.toLocaleString('en-US')} titles. Data last changed {formatDate(lastUpdated())}.
         </p>
         <p>
           Built from <a href={SOURCES.tracker}>Installomator-Tracker</a>{' '}and{' '}
