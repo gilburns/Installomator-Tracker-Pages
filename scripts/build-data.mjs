@@ -9,6 +9,7 @@
 //   src/data/apps.json          every tracked label, merged, versions newest first
 //   src/data/failed.json        failing labels with no version history yet
 //   public/data/search.json     compact index used by the in-browser search
+//   public/data/label_status.csv  the tracker's current status of every label, copied as is
 //   public/icons/{96,256}/<label>.webp  resized icons (skipped when already up to date)
 
 import { execFileSync } from 'node:child_process';
@@ -130,6 +131,18 @@ async function readFailed() {
     console.warn(`warn: could not read failed_labels.json: ${err.message}`);
     return new Map();
   }
+}
+
+// The tracker's label_status.csv, served from the site so the footer link downloads it.
+async function copyLabelStatus() {
+  const file = path.join(trackerDir, 'label_status.csv');
+  const dest = path.join(root, 'public/data/label_status.csv');
+  if (!(await exists(file))) {
+    console.warn('warn: label_status.csv not found; the footer will not link to it.');
+    await fs.rm(dest, { force: true });
+    return;
+  }
+  await fs.copyFile(file, dest);
 }
 
 // Run an async fn over items with bounded concurrency.
@@ -266,6 +279,7 @@ async function main() {
     i: a.hasIcon ? 1 : 0,
   }));
   await fs.writeFile(path.join(root, 'public/data/search.json'), JSON.stringify(search));
+  await copyLabelStatus();
 
   const withMeta = apps.filter((a) => a.description).length;
   const withIcon = apps.filter((a) => a.hasIcon).length;
