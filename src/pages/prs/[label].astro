@@ -1,0 +1,191 @@
+---
+import Base from '../../layouts/Base.astro';
+import CopyButton from '../../components/CopyButton.astro';
+import {
+  SOURCES, appHref, approvalsOf, changeOf, checksOf, formatDate, iconSrc, labelPRs, labelSourceUrl, prHref, reviewOf, reviewStateText,
+} from '../../lib/apps.js';
+
+export function getStaticPaths() {
+  return labelPRs.map((entry) => ({ params: { label: entry.label }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const prs = entry.pullRequests;
+const onlyAdds = prs.every((pr) => changeOf(pr).key === 'added');
+const reviewChip = { APPROVED: 'new', CHANGES_REQUESTED: 'warn' };
+const mergeText = { MERGEABLE: 'No conflicts', CONFLICTING: 'Has merge conflicts', UNKNOWN: 'Not yet known' };
+// The label file as it is in the PR's latest commit, on the contributor's fork.
+const prFileUrl = (pr) =>
+  pr.headRepository && pr.headCommit && changeOf(pr).key !== 'deleted'
+    ? `https://github.com/${pr.headRepository}/blob/${pr.headCommit}/${entry.labelFile}`
+    : undefined;
+const prCount = prs.length === 1 ? 'An open pull request' : `${prs.length} open pull requests`;
+---
+<Base title={`${entry.name} pull requests`} description={`${prCount} on Installomator changing the ${entry.label} label, with review status.`}>
+  <p class="crumbs"><a href="/prs/">Open PRs</a> / {entry.label}</p>
+
+  <section class="card head">
+    <img class="icon" src={iconSrc(entry, 256)} alt="" width="88" height="88" />
+    <div class="head-text">
+      <h1>{entry.name}</h1>
+      <p class="label-line">
+        <code>{entry.label}</code><CopyButton value={entry.label} what="label" />
+        {entry.publisher && <span class="muted"> · {entry.publisher}</span>}
+      </p>
+      <p class="summary">
+        {prCount} on <a href={SOURCES.installomator}>Installomator</a>{' '}
+        {onlyAdds ? (prs.length === 1 ? 'adds this label.' : 'add this label.') : (prs.length === 1 ? 'changes this label.' : 'change this label.')}
+        {!entry.hasPage && ' It isn\'t tracked yet, so it has no version history here. It will once a PR adding it is merged and the tracker resolves it.'}
+      </p>
+      <p class="links">
+        {entry.hasPage && <a class="file-btn" href={appHref(entry.label)}>Version history →</a>}
+        {!onlyAdds && (
+          <a class="file-btn" href={labelSourceUrl(entry.label)} rel="noopener" title="View the label as it is in Installomator today">
+            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M11 4h5v5m0-5-7 7M8.5 5H5.5A1.5 1.5 0 0 0 4 6.5v8A1.5 1.5 0 0 0 5.5 16h8a1.5 1.5 0 0 0 1.5-1.5v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Current label script
+          </a>
+        )}
+      </p>
+    </div>
+  </section>
+
+  {prs.map((pr) => {
+    const review = reviewOf(pr);
+    const checks = checksOf(pr);
+    const change = changeOf(pr);
+    const otherLabels = pr.labelsInPR.filter((l) => l !== entry.label);
+    const fileUrl = prFileUrl(pr);
+    return (
+      <section class="card pr" id={`pr-${pr.number}`} aria-labelledby={`pr-${pr.number}-title`}>
+        <h2 id={`pr-${pr.number}-title`}>
+          <a href={pr.url} rel="noopener">{pr.title} <span class="num">#{pr.number}</span></a>
+        </h2>
+        <p class="chips">
+          <span class:list={['chip', change.key === 'added' ? 'new' : change.key === 'deleted' ? 'warn' : 'plain']}>{change.text}</span>
+          <span class:list={['chip', review.chip]}>{review.text}</span>
+          {review.key !== 'approved' && approvalsOf(pr) > 0 && <span class="chip new">{approvalsOf(pr)} {approvalsOf(pr) === 1 ? 'approval' : 'approvals'}</span>}
+          {pr.isDraft && pr.reviewDecision && <span class="chip plain">{reviewOf({ ...pr, isDraft: false }).text}</span>}
+          {pr.mergeable === 'CONFLICTING' && <span class="chip warn">Merge conflicts</span>}
+          {checks && <span class:list={['chip', checks.chip]}>{checks.text}</span>}
+          {pr.prLabels.map((l) => <span class="chip plain" title="Label on the pull request">{l}</span>)}
+        </p>
+
+        <dl>
+          <div>
+            <dt>Opened by</dt>
+            <dd>{pr.author.url ? <a href={pr.author.url} rel="noopener">{pr.author.login}</a> : pr.author.login} on <span title={pr.createdAt}>{formatDate(pr.createdAt)}</span></dd>
+          </div>
+          <div><dt>Last updated</dt><dd title={pr.updatedAt}>{formatDate(pr.updatedAt)}</dd></div>
+          <div>
+            <dt>Change to this label</dt>
+            <dd>
+              {change.text}{' '}
+              <span class="diff"><span class="add">+{pr.labelChange.additions}</span> <span class="del">−{pr.labelChange.deletions}</span></span>
+            </dd>
+          </div>
+          <div><dt>Mergeable</dt><dd>{mergeText[pr.mergeable] ?? pr.mergeable ?? 'Not yet known'}</dd></div>
+          <div>
+            <dt>Branch</dt>
+            <dd><code>{pr.headRepository ? `${pr.headRepository.split('/')[0]}:${pr.headBranch}` : pr.headBranch}</code> → <code>{pr.baseBranch}</code></dd>
+          </div>
+          <div>
+            <dt>Activity</dt>
+            <dd>
+              {pr.commitCount} {pr.commitCount === 1 ? 'commit' : 'commits'},{' '}
+              {pr.commentCount} {pr.commentCount === 1 ? 'comment' : 'comments'},{' '}
+              {pr.changedFileCount} {pr.changedFileCount === 1 ? 'file' : 'files'} changed
+            </dd>
+          </div>
+        </dl>
+
+        <div class="reviews">
+          <h3>Reviews</h3>
+          {pr.reviews.length === 0 && pr.requestedReviewers.length === 0 && <p class="muted">No reviews yet.</p>}
+          {(pr.reviews.length > 0 || pr.requestedReviewers.length > 0) && (
+            <ul>
+              {pr.reviews.map((r) => (
+                <li>
+                  <a href={`https://github.com/${r.reviewer}`} rel="noopener">{r.reviewer}</a>
+                  <span class:list={['chip', reviewChip[r.state] ?? 'plain']}>{reviewStateText(r.state)}</span>
+                  <span class="muted small" title={r.submittedAt}>{formatDate(r.submittedAt)}</span>
+                </li>
+              ))}
+              {pr.requestedReviewers.filter((name) => !pr.reviews.some((r) => r.reviewer === name)).map((name) => (
+                <li>
+                  <a href={`https://github.com/${name}`} rel="noopener">{name}</a>
+                  <span class="chip plain">Review requested</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {otherLabels.length > 0 && (
+          <p class="others">
+            <span class="muted">This PR also changes</span>{' '}
+            {otherLabels.map((l) => <a class="chip" href={prHref(l)}>{l}</a>)}
+          </p>
+        )}
+
+        <p class="actions">
+          <a class="file-btn primary" href={pr.url} rel="noopener">
+            Open on GitHub
+            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M11 4h5v5m0-5-7 7M8.5 5H5.5A1.5 1.5 0 0 0 4 6.5v8A1.5 1.5 0 0 0 5.5 16h8a1.5 1.5 0 0 0 1.5-1.5v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <a class="file-btn" href={`${pr.url}/files`} rel="noopener" title="See the diff and leave a review">Review changes</a>
+          {checks && <a class="file-btn" href={`${pr.url}/checks`} rel="noopener">Checks</a>}
+          {fileUrl && <a class="file-btn" href={fileUrl} rel="noopener" title="The label file as of the PR's latest commit">Label in this PR</a>}
+        </p>
+      </section>
+    );
+  })}
+
+  <p class="muted small foot">
+    From <a href={`${SOURCES.tracker}/blob/main/LabelPRs/${entry.label}.json`}>Installomator-Tracker</a>, refreshed twice a day.
+    GitHub may show newer activity.
+  </p>
+</Base>
+
+<style>
+  .crumbs { margin: 0 0 12px; font-size: 13px; color: var(--muted); }
+  .head { display: flex; gap: 20px; padding: 20px; align-items: flex-start; margin-bottom: 20px; }
+  .head-text { min-width: 0; }
+  .head h1 { font-size: 26px; margin-bottom: 2px; }
+  .label-line { margin: 0 0 8px; overflow-wrap: anywhere; }
+  .summary { margin: 0 0 12px; max-width: 70ch; }
+  .links, .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 0; }
+  .links:empty { display: none; }
+  @media (max-width: 560px) {
+    .head { flex-direction: column; }
+    .head .icon { width: 72px; height: 72px; }
+  }
+  .file-btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 14px;
+  }
+  .file-btn:hover { text-decoration: none; border-color: var(--accent); color: var(--accent); }
+  .file-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .file-btn.primary:hover { filter: brightness(1.1); color: var(--surface); }
+
+  .pr { padding: 16px 20px; margin-bottom: 16px; border-left: 3px solid var(--pr); }
+  .pr h2 { font-size: 18px; margin-bottom: 8px; overflow-wrap: anywhere; }
+  .pr h2 a { color: var(--text); }
+  .pr h2 a:hover { color: var(--accent); }
+  .num { color: var(--muted); font-weight: 400; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+  dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px 24px; margin: 0 0 14px; }
+  dt, h3 { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 400; }
+  dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+  .diff { font-variant-numeric: tabular-nums; font-size: 13px; }
+  .add { color: var(--new); }
+  .del { color: var(--warn); }
+  .reviews { margin: 0 0 14px; }
+  .reviews h3 { margin: 0 0 4px; }
+  .reviews p { margin: 0; }
+  .reviews ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .reviews li { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+  .others { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 14px; }
+  .actions { padding-top: 14px; border-top: 1px solid var(--border); }
+  .small { font-size: 13px; }
+  .foot { margin-top: 8px; }
+</style>

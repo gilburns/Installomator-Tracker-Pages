@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import AboutSite from '../components/AboutSite.astro';
+import PrBadge from '../components/PrBadge.astro';
 import { RECENT_COUNT, appHref, formatDay, iconSrc, recentReleases } from '../lib/apps.js';
 
 const recent = recentReleases(RECENT_COUNT);
@@ -41,6 +42,7 @@ for (const r of recent) {
                 <span class="muted small">{r.app.publisher || r.app.label}</span>
               </span>
               <span class="right">
+                <PrBadge label={r.app.label} />
                 {r.firstSeen && <span class="chip new">New title</span>}
                 <span class="version">{r.version}</span>
               </span>
@@ -68,7 +70,7 @@ for (const r of recent) {
   .what { display: flex; flex-direction: column; min-width: 0; flex: 1; }
   .name { font-weight: 600; }
   .small { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .right { display: flex; align-items: center; gap: 10px; text-align: right; max-width: 45%; }
+  .right { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 4px 10px; text-align: right; max-width: 45%; }
   .right .version { font-weight: 500; }
   .more { margin-top: 24px; }
 </style>

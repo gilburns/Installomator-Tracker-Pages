@@ -2,6 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import { SOURCES, allTitles, formatDate, iconSrc, isSkipped, isUrl, labelSourceUrl, metadataIconUrl, metadataPlistUrl } from '../../lib/apps.js';
 import CopyButton from '../../components/CopyButton.astro';
+import PrBadge from '../../components/PrBadge.astro';
 
 export function getStaticPaths() {
   return allTitles.map((app) => ({ params: { label: app.label }, props: { app } }));
@@ -53,6 +54,7 @@ const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === a
       ) : (
         <p class="latest">{skipped ? <span class="chip">Skipped</span> : <span class="chip warn">Failing</span>} <span class="muted">No version captured yet</span></p>
       )}
+      <p class="pr-line"><PrBadge label={app.label} link detail /></p>
       {app.description && <p class="desc">{app.description} <CopyButton value={app.description} what="description" /></p>}
       {Object.keys(app.links).length > 0 && (
         <p class="links">
@@ -242,6 +244,8 @@ const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === a
   .publisher .chip { margin-left: 4px; vertical-align: 1px; }
   .publisher .chip:hover { text-decoration: none; background: var(--accent); color: var(--surface); }
   .latest { margin: 0 0 10px; }
+  .pr-line { margin: 0 0 10px; }
+  .pr-line:empty { display: none; }
   .desc { margin: 0 0 10px; max-width: 70ch; }
   .links { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; }
   @media (max-width: 560px) {

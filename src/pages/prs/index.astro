@@ -1,0 +1,171 @@
+---
+import fs from 'node:fs';
+import Base from '../../layouts/Base.astro';
+import { SOURCES, approvalsOf, changeOf, checksOf, formatDate, iconSrc, labelPRs, prHref, reviewOf } from '../../lib/apps.js';
+
+// Copied from the tracker by scripts/build-data.mjs; not linked when missing.
+const hasCsv = fs.existsSync('public/data/label_prs.csv');
+
+const prCount = new Set(labelPRs.flatMap((e) => e.pullRequests.map((pr) => pr.number))).size;
+const changeCounts = { added: 0, modified: 0, deleted: 0 };
+const reviewCounts = { approved: 0, changes: 0, review: 0, draft: 0, none: 0 };
+for (const e of labelPRs) {
+  for (const key of new Set(e.pullRequests.map((pr) => changeOf(pr).key))) if (key in changeCounts) changeCounts[key]++;
+  for (const key of new Set(e.pullRequests.map((pr) => reviewOf(pr).key))) reviewCounts[key]++;
+}
+const oldestOpened = (e) => e.pullRequests.reduce((min, pr) => (pr.createdAt < min ? pr.createdAt : min), e.pullRequests[0].createdAt);
+---
+<Base title="Open label PRs" description="Open pull requests on Installomator that add, change or remove a label, with their review status.">
+  <h1>Open label pull requests</h1>
+  <p class="muted intro">
+    {labelPRs.length} labels are changed by {prCount} open <a href={SOURCES.installomatorPRs}>pull requests on Installomator</a>.
+    A new label shows up in the rest of the site once it's merged and the tracker resolves it.
+    The list is refreshed twice a day, with the tracker.
+    {hasCsv && <>{' '}<a href="/data/label_prs.csv" download>Download as CSV</a>.</>}
+  </p>
+
+  <div class="filters">
+    <input id="q" class="search" type="search" placeholder="Search by name, label, PR number, title or author" aria-label="Search pull requests" autocomplete="off" />
+    <select id="change" class="search" aria-label="Change">
+      <option value="">All changes</option>
+      <option value="added">New labels ({changeCounts.added})</option>
+      <option value="modified">Label updates ({changeCounts.modified})</option>
+      {changeCounts.deleted > 0 && <option value="deleted">Label removals ({changeCounts.deleted})</option>}
+    </select>
+    <select id="review" class="search" aria-label="Review state">
+      <option value="">All review states</option>
+      <option value="review">Review required ({reviewCounts.review})</option>
+      <option value="changes">Changes requested ({reviewCounts.changes})</option>
+      <option value="approved">Approved ({reviewCounts.approved})</option>
+      {reviewCounts.draft > 0 && <option value="draft">Draft ({reviewCounts.draft})</option>}
+      {reviewCounts.none > 0 && <option value="none">No review decision ({reviewCounts.none})</option>}
+    </select>
+    <select id="sort" class="search" aria-label="Sort">
+      <option value="updated">Recently updated</option>
+      <option value="opened">Oldest first</option>
+      <option value="name">Name</option>
+    </select>
+  </div>
+  <p id="count" class="muted status" aria-live="polite">{labelPRs.length} labels</p>
+
+  <ul id="list" class="card pr-list">
+    {labelPRs.map((e) => (
+      <li
+        data-name={e.name.toLowerCase()}
+        data-text={[e.name, e.label, e.publisher, ...e.pullRequests.flatMap((pr) => [`#${pr.number}`, pr.title, pr.author.login])].join(' ').toLowerCase()}
+        data-change={e.pullRequests.map((pr) => changeOf(pr).key).join(' ')}
+        data-review={e.pullRequests.map((pr) => reviewOf(pr).key).join(' ')}
+        data-updated={e.updatedAt}
+        data-opened={oldestOpened(e)}
+      >
+        <a class="row" href={prHref(e.label)}>
+          <img class="icon" src={iconSrc(e, 96)} alt="" width="40" height="40" loading="lazy" />
+          <span class="what">
+            <span class="title-line">
+              <span class="name">{e.name}</span>
+              {e.name !== e.label && <code class="muted">{e.label}</code>}
+            </span>
+            {e.pullRequests.map((pr) => {
+              const review = reviewOf(pr);
+              const checks = checksOf(pr);
+              return (
+                <span class="pr">
+                  <span class="pr-title"><span class="num">#{pr.number}</span> {pr.title}</span>
+                  <span class="chips">
+                    <span class:list={['chip', changeOf(pr).key === 'added' ? 'new' : changeOf(pr).key === 'deleted' ? 'warn' : 'plain']}>{changeOf(pr).text}</span>
+                    <span class:list={['chip', review.chip]}>{review.text}</span>
+                    {review.key !== 'approved' && approvalsOf(pr) > 0 && <span class="chip new">{approvalsOf(pr)} {approvalsOf(pr) === 1 ? 'approval' : 'approvals'}</span>}
+                    {pr.mergeable === 'CONFLICTING' && <span class="chip warn">Merge conflicts</span>}
+                    {checks?.chip === 'warn' && <span class="chip warn">{checks.text}</span>}
+                    <span class="muted small">{pr.author.login} · updated {formatDate(pr.updatedAt)}</span>
+                  </span>
+                </span>
+              );
+            })}
+          </span>
+        </a>
+      </li>
+    ))}
+  </ul>
+  <p id="empty" class="muted" hidden>No pull requests match.</p>
+</Base>
+
+<script>
+  const q = document.getElementById('q') as HTMLInputElement;
+  const change = document.getElementById('change') as HTMLSelectElement;
+  const review = document.getElementById('review') as HTMLSelectElement;
+  const sort = document.getElementById('sort') as HTMLSelectElement;
+  const list = document.getElementById('list')!;
+  const count = document.getElementById('count')!;
+  const empty = document.getElementById('empty')!;
+  const items = [...list.children] as HTMLElement[];
+  const orders: Record<string, HTMLElement[]> = {
+    updated: items,
+    opened: [...items].sort((a, b) => (a.dataset.opened ?? '').localeCompare(b.dataset.opened ?? '')),
+    name: [...items].sort((a, b) => (a.dataset.name ?? '').localeCompare(b.dataset.name ?? '')),
+  };
+  const has = (el: HTMLElement, key: string, value: string) => !value || (el.dataset[key] ?? '').split(' ').includes(value);
+  const optionValues = (sel: HTMLSelectElement) => [...sel.options].map((o) => o.value);
+
+  // Filters are kept in the URL so links to a filtered list work.
+  const params = new URLSearchParams(location.search);
+  q.value = params.get('q') ?? '';
+  for (const [sel, name] of [[change, 'change'], [review, 'review'], [sort, 'sort']] as const) {
+    const v = params.get(name) ?? '';
+    if (optionValues(sel).includes(v)) sel.value = v;
+  }
+
+  let currentSort = '';
+
+  function apply() {
+    const terms = q.value.toLowerCase().split(/\s+/).filter(Boolean);
+    const order = orders[sort.value] ?? items;
+    if (sort.value !== currentSort) {
+      list.append(...order);
+      currentSort = sort.value;
+    }
+    let shown = 0;
+    for (const el of order) {
+      const text = el.dataset.text ?? '';
+      const match = has(el, 'change', change.value) && has(el, 'review', review.value) && terms.every((t) => text.includes(t));
+      el.hidden = !match;
+      if (match) shown++;
+    }
+    count.textContent = `${shown} ${shown === 1 ? 'label' : 'labels'}`;
+    empty.hidden = shown > 0;
+    list.hidden = shown === 0;
+
+    const next = new URLSearchParams();
+    if (q.value) next.set('q', q.value);
+    if (change.value) next.set('change', change.value);
+    if (review.value) next.set('review', review.value);
+    if (sort.value !== 'updated') next.set('sort', sort.value);
+    const qs = next.toString();
+    history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+  }
+
+  q.addEventListener('input', apply);
+  for (const sel of [change, review, sort]) sel.addEventListener('change', apply);
+  apply();
+</script>
+
+<style>
+  h1 { margin-bottom: .5rem; }
+  .intro { margin: 0 0 12px; max-width: 75ch; }
+  .filters { display: flex; gap: 8px; margin: 12px 0 8px; flex-wrap: wrap; }
+  .filters #q { flex: 1 1 280px; }
+  .status { margin: 0 0 1rem; }
+  .pr-list { list-style: none; margin: 0; padding: 0; overflow: hidden; }
+  .pr-list li + li { border-top: 1px solid var(--border); }
+  .row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; color: var(--text); }
+  .row:hover { text-decoration: none; background: var(--bg); }
+  .what { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+  .title-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; }
+  .name { font-weight: 600; }
+  .title-line code { overflow-wrap: anywhere; }
+  .pr { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .pr-title { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .num { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .chips { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; }
+  .small { font-size: 13px; }
+</style>
