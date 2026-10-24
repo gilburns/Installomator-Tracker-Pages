@@ -8,8 +8,10 @@
 // Writes:
 //   src/data/apps.json          every tracked label, merged, versions newest first
 //   src/data/failed.json        failing labels with no version history yet
+//   src/data/prs.json           labels with open Installomator pull requests, from LabelPRs/
 //   public/data/search.json     compact index used by the in-browser search
 //   public/data/label_status.csv  the tracker's current status of every label, copied as is
+//   public/data/label_prs.csv     the tracker's open label pull requests, copied as is
 //   public/icons/{96,256}/<label>.webp  resized icons (skipped when already up to date)
 
 import { execFileSync } from 'node:child_process';
@@ -133,16 +135,36 @@ async function readFailed() {
   }
 }
 
-// The tracker's label_status.csv, served from the site so the footer link downloads it.
-async function copyLabelStatus() {
-  const file = path.join(trackerDir, 'label_status.csv');
-  const dest = path.join(root, 'public/data/label_status.csv');
+// A tracker CSV snapshot, served from the site so it can be downloaded.
+async function copyTrackerCsv(name, missingNote) {
+  const file = path.join(trackerDir, name);
+  const dest = path.join(root, 'public/data', name);
   if (!(await exists(file))) {
-    console.warn('warn: label_status.csv not found; the footer will not link to it.');
+    console.warn(`warn: ${name} not found; ${missingNote}`);
     await fs.rm(dest, { force: true });
     return;
   }
   await fs.copyFile(file, dest);
+}
+
+// Open Installomator pull requests touching each label, from LabelPRs/<label>.json.
+async function readLabelPRs() {
+  const dir = path.join(trackerDir, 'LabelPRs');
+  if (!(await exists(dir))) {
+    console.warn('warn: LabelPRs/ not found; no open pull requests will be shown.');
+    return [];
+  }
+  const files = (await fs.readdir(dir)).filter((f) => f.endsWith('.json')).sort();
+  return (await Promise.all(files.map(async (file) => {
+    try {
+      const doc = JSON.parse(await fs.readFile(path.join(dir, file), 'utf8'));
+      if (!str(doc.label) || !Array.isArray(doc.pullRequests) || doc.pullRequests.length === 0) return null;
+      return { label: doc.label, labelFile: str(doc.labelFile), pullRequests: doc.pullRequests };
+    } catch (err) {
+      console.warn(`warn: skipping LabelPRs/${file}: ${err.message}`);
+      return null;
+    }
+  }))).filter(Boolean);
 }
 
 // Run an async fn over items with bounded concurrency.
@@ -279,7 +301,28 @@ async function main() {
     i: a.hasIcon ? 1 : 0,
   }));
   await fs.writeFile(path.join(root, 'public/data/search.json'), JSON.stringify(search));
-  await copyLabelStatus();
+  await copyTrackerCsv('label_status.csv', 'the footer will not link to it.');
+  await copyTrackerCsv('label_prs.csv', 'the PRs page will not link to it.');
+
+  // Labels with open pull requests. Labels that already have a title page reuse
+  // its name and icon; labels a PR adds only get metadata if it's been written.
+  const titles = new Map([...apps, ...failedOnly].map((a) => [a.label, a]));
+  const prs = await mapLimit(await readLabelPRs(), 8, async ({ label, labelFile, pullRequests }) => {
+    const title = titles.get(label) ?? {
+      ...metadataFields(label, await readMetadata(label)),
+      hasIcon: await buildIcon(label),
+    };
+    return {
+      label,
+      labelFile,
+      name: title.name,
+      publisher: title.publisher,
+      hasIcon: title.hasIcon,
+      hasPage: titles.has(label),
+      pullRequests,
+    };
+  });
+  await fs.writeFile(path.join(root, 'src/data/prs.json'), JSON.stringify(prs));
 
   const withMeta = apps.filter((a) => a.description).length;
   const withIcon = apps.filter((a) => a.hasIcon).length;
@@ -289,6 +332,8 @@ async function main() {
   const signedCount = apps.filter((a) => a.versions.some((v) => v.signedUntil !== undefined)).length;
   console.log(`Built ${apps.length} titles, ${entries} versions (${withMeta} with metadata, ${withIcon} with icons, ${staticCount} with a static download URL, ${signedCount} with expiring signed links).`);
   console.log(`${failed.size} failing labels: ${failingTracked} with version history, ${failedOnly.length} without.`);
+  const prCount = new Set(prs.flatMap((p) => p.pullRequests.map((pr) => pr.number))).size;
+  console.log(`${prs.length} labels with open pull requests (${prCount} PRs), ${prs.filter((p) => !p.hasPage).length} without a title page.`);
 }
 
 main().catch((err) => {

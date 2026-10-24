@@ -1,0 +1,34 @@
+---
+// "Open PR" badge for a label with open Installomator pull requests. Renders
+// nothing for other labels. Pass `link` where the badge isn't already inside a
+// link (the title page); `detail` adds the PR number and review state.
+import { approvalsOf, openPRsFor, prHref, reviewOf } from '../lib/apps.js';
+
+interface Props {
+  label: string;
+  link?: boolean;
+  detail?: boolean;
+}
+const { label, link = false, detail = false } = Astro.props;
+const entry = openPRsFor(label);
+const prs = entry?.pullRequests ?? [];
+const one = prs.length === 1 ? prs[0] : undefined;
+const summary = prs.map((pr) => `#${pr.number} (${reviewOf(pr).text.toLowerCase()}${approvalsOf(pr) && reviewOf(pr).key !== 'approved' ? `, ${approvalsOf(pr)} approved` : ''})`).join(', ');
+const title = `${prs.length === 1 ? 'An open pull request changes' : `${prs.length} open pull requests change`} this label in Installomator: ${summary}`;
+const text = detail && one
+  ? `Open PR #${one.number} · ${reviewOf(one).text}`
+  : prs.length === 1 ? 'Open PR' : `${prs.length} open PRs`;
+const Tag = link ? 'a' : 'span';
+---
+{entry && (
+  <Tag class:list={['chip pr pr-badge', { link }]} href={link ? prHref(label) : undefined} title={title}>
+    <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><circle cx="4" cy="3.5" r="1.6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="4" cy="12.5" r="1.6" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12.5" r="1.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 5.1v5.8M12 10.9V6.5a2 2 0 0 0-2-2H7.2m1.6-1.8L7 4.5l1.8 1.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>{text}{link && ' →'}</span>
+  </Tag>
+)}
+
+<style>
+  .pr-badge { display: inline-flex; align-items: center; gap: 4px; }
+  .pr-badge svg { flex: none; }
+  .pr-badge.link:hover { text-decoration: none; background: var(--pr); color: var(--surface); }
+</style>

@@ -4,7 +4,7 @@ Source for [installomatortracker.org](https://installomatortracker.org): a searc
 
 The site is static. It's rebuilt from two data repos and published with GitHub Pages:
 
-- [Installomator-Tracker](https://github.com/gilburns/Installomator-Tracker): the version history in `TrackedLabelDetails/<label>.json`, and the labels it currently can't resolve in `failed_labels.json`, and the current status of every label in `label_status.csv`.
+- [Installomator-Tracker](https://github.com/gilburns/Installomator-Tracker): the version history in `TrackedLabelDetails/<label>.json`, and the labels it currently can't resolve in `failed_labels.json`, the current status of every label in `label_status.csv`, and the open Installomator pull requests that touch each label in `LabelPRs/<label>.json` and `label_prs.csv`.
 - [Installomator-Metadata](https://github.com/gilburns/Installomator-Metadata): the name, publisher, category, description, links and icon for each label.
 
 ## How it updates
@@ -16,9 +16,12 @@ The site is static. It's rebuilt from two data repos and published with GitHub P
 - `/` shows the most recent versions found, grouped by day (`RECENT_COUNT` in `src/lib/apps.js`).
 - `/browse/` lists every title with search by name, publisher, keyword or label and filters for category, status (working, failing or skipped) and sort. Filters are kept in the URL, for example `/browse/?category=Web%20Browsers` or `/browse/?status=failing`.
 - `/app/<label>/` shows one title's details and its full version history. Failing labels also show the failure reason, and labels that don't set `appNewVersion` are shown as skipped rather than failing; those the tracker has never resolved get a page with no version history. Signed download links that expire (CloudFront, S3, Google Cloud Storage, GitHub release assets, Akamai, CDN77, Oracle) are marked as expired or expiring.
+- `/prs/` lists every label that an open Installomator pull request adds, changes or removes, with each PR's review state, approvals, merge conflicts and failing checks. Search and the change and review filters are kept in the URL like Browse, for example `/prs/?review=changes`. Labels with an open PR get an "Open PR" badge on Recent, Browse and their title page; the title page badge links to the PR page.
+- `/prs/<label>/` shows each open PR for one label: author, dates, the change to the label file, reviews and requested reviewers, mergeability and checks, other labels in the same PR, and links to the PR, its diff, its checks and the label file as of the PR's latest commit. A label that a PR adds only appears here until it's merged and tracked.
 - `/data/search.json` is a compact index of every title and its latest version.
 - `/data/label_status.csv` is the tracker's current status of every label, linked from the footer for download.
-- `/sitemap.xml` and `/llms.txt` are generated at build time and list the title pages and data files for crawlers and agents; `public/robots.txt` points to the sitemap.
+- `/data/label_prs.csv` is the tracker's list of open label PRs, linked from the PRs page for download.
+- `/sitemap.xml` and `/llms.txt` are generated at build time and list the title pages, PR pages and data files for crawlers and agents; `public/robots.txt` points to the sitemap.
 
 ## Building locally
 

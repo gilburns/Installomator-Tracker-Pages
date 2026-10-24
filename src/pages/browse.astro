@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import AboutSite from '../components/AboutSite.astro';
+import PrBadge from '../components/PrBadge.astro';
 import { allTitles, appHref, categories, formatDate, iconSrc, isSkipped, statusOf } from '../lib/apps.js';
 
 const cats = categories();
@@ -77,6 +78,7 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
                 <span>{a.versions.length > 0 ? 'Not updating' : 'Failing'}: {a.failing.reason}</span>
               </span>
             ))}
+            <span class="pr-row"><PrBadge label={a.label} /></span>
           </span>
         </a>
       </li>
@@ -175,5 +177,7 @@ const subtitle = (a) => (nameCounts.get(a.name) > 1 ? [a.publisher, a.label].fil
   .reason.skipped { color: var(--muted); }
   .reason svg { flex: none; }
   .reason span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pr-row { display: flex; margin-top: 4px; }
+  .pr-row:empty { display: none; }
   .info > .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
