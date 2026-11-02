@@ -16,13 +16,13 @@ const missingMetadata = apps.filter((a) => !a.description).length;
     <button type="button" class="close" id="about-close" aria-label="Close">×</button>
   </div>
   <p>
-    This site is built from two open companion projects. Both are rebuilt into the site twice a day,
+    This site is built from two open companion projects. Both are rebuilt into the site 12 times a day,
     shortly after the tracker finishes its run.
   </p>
 
   <h3><a href={SOURCES.tracker}>Installomator-Tracker</a></h3>
   <p>
-    Runs every <a href={SOURCES.installomator}>Installomator</a> label twice a day on a GitHub Actions Mac,
+    Runs every <a href={SOURCES.installomator}>Installomator</a> label 12 times a day (every two hours) on a self-hosted Mac,
     the same way Installomator resolves it, and records each new version it finds along with its download
     URL, team ID and the time it was first seen. Over time that builds the version history you see on each
     title page.
