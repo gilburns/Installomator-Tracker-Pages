@@ -8,7 +8,7 @@ export function GET({ site }) {
   const hasLabelPRs = fs.existsSync('public/data/label_prs.csv');
   const body = `# Installomator Version Tracker
 
-> Version history for ${allTitles.length.toLocaleString('en-US')} macOS apps tracked through [Installomator](${SOURCES.installomator}) labels. Every label is run twice a day on a GitHub Actions Mac, and each new version found is recorded with its download URL, Apple team ID and the time it was first seen. Data last changed ${lastUpdated().slice(0, 10)}.
+> Version history for ${allTitles.length.toLocaleString('en-US')} macOS apps tracked through [Installomator](${SOURCES.installomator}) labels. Every label is run 12 times a day (every two hours) on a self-hosted Mac, and each new version found is recorded with its download URL, Apple team ID and the time it was first seen. Data last changed ${lastUpdated().slice(0, 10)}.
 
 Each title is identified by its Installomator label (for example \`googlechrome\`). A label is working when the tracker resolves a version, failing when it can't, and skipped when the label doesn't set \`appNewVersion\`, so there's no version to track. Some vendors issue short-lived signed download links, and those links stop working after they expire.
 

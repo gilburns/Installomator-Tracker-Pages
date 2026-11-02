@@ -4,10 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
-  # The tracker runs at 06:00 and 18:00 UTC and takes up to ~45 minutes,
-  # so rebuild a little after each run picks up new versions.
+  # The tracker runs every two hours on the even hours UTC and takes up to
+  # ~45 minutes, so rebuild on the odd hours to pick up each run's new versions.
   schedule:
-    - cron: '30 7,19 * * *'
+    - cron: '30 1-23/2 * * *'
   workflow_dispatch:
   # Lets the data repos trigger a rebuild right after they change.
   repository_dispatch:
