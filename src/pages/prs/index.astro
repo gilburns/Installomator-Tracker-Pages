@@ -20,7 +20,7 @@ const oldestOpened = (e) => e.pullRequests.reduce((min, pr) => (pr.createdAt < m
   <p class="muted intro">
     {labelPRs.length} labels are changed by {prCount} open <a href={SOURCES.installomatorPRs}>pull requests on Installomator</a>.
     A new label shows up in the rest of the site once it's merged and the tracker resolves it.
-    The list is refreshed 12 times a day, with the tracker.
+    The list is refreshed 24 times a day, with the tracker.
     {hasCsv && <>{' '}<a href="/data/label_prs.csv" download>Download as CSV</a>.</>}
   </p>
 

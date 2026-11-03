@@ -15,7 +15,7 @@ const failing = app.failing;
 const skipped = isSkipped(app);
 const linkLabels = { homepage: 'Website', documentation: 'Documentation', privacy: 'Privacy policy' };
 const hasIntel = app.versions.some((v) => v.downloadURLi386);
-// Signed links are checked against the build time; the site rebuilds 12 times a day.
+// Signed links are checked against the build time; the site rebuilds 24 times a day.
 const builtAt = new Date().toISOString();
 const isSigned = (v) => v.signedUntil !== undefined;
 const expiryTime = (iso) => `${formatDate(iso)} at ${iso.slice(11, 16)} UTC`;
