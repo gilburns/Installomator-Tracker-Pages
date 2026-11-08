@@ -7,7 +7,7 @@ import { SOURCES, approvalsOf, changeOf, checksOf, formatDate, iconSrc, labelPRs
 const hasCsv = fs.existsSync('public/data/label_prs.csv');
 
 const prCount = new Set(labelPRs.flatMap((e) => e.pullRequests.map((pr) => pr.number))).size;
-const changeCounts = { added: 0, modified: 0, deleted: 0 };
+const changeCounts = { added: 0, modified: 0, disabled: 0, deleted: 0 };
 const reviewCounts = { approved: 0, changes: 0, review: 0, draft: 0, none: 0 };
 for (const e of labelPRs) {
   for (const key of new Set(e.pullRequests.map((pr) => changeOf(pr).key))) if (key in changeCounts) changeCounts[key]++;
@@ -15,7 +15,7 @@ for (const e of labelPRs) {
 }
 const oldestOpened = (e) => e.pullRequests.reduce((min, pr) => (pr.createdAt < min ? pr.createdAt : min), e.pullRequests[0].createdAt);
 ---
-<Base title="Open label PRs" description="Open pull requests on Installomator that add, change or remove a label, with their review status.">
+<Base title="Open label PRs" description="Open pull requests on Installomator that add, change, disable or remove a label, with their review status.">
   <h1>Open label pull requests</h1>
   <p class="muted intro">
     {labelPRs.length} labels are changed by {prCount} open <a href={SOURCES.installomatorPRs}>pull requests on Installomator</a>.
@@ -30,6 +30,7 @@ const oldestOpened = (e) => e.pullRequests.reduce((min, pr) => (pr.createdAt < m
       <option value="">All changes</option>
       <option value="added">New labels ({changeCounts.added})</option>
       <option value="modified">Label updates ({changeCounts.modified})</option>
+      {changeCounts.disabled > 0 && <option value="disabled">Labels disabled ({changeCounts.disabled})</option>}
       {changeCounts.deleted > 0 && <option value="deleted">Label removals ({changeCounts.deleted})</option>}
     </select>
     <select id="review" class="search" aria-label="Review state">
@@ -72,7 +73,7 @@ const oldestOpened = (e) => e.pullRequests.reduce((min, pr) => (pr.createdAt < m
                 <span class="pr">
                   <span class="pr-title"><span class="num">#{pr.number}</span> {pr.title}</span>
                   <span class="chips">
-                    <span class:list={['chip', changeOf(pr).key === 'added' ? 'new' : changeOf(pr).key === 'deleted' ? 'warn' : 'plain']}>{changeOf(pr).text}</span>
+                    <span class:list={['chip', changeOf(pr).chip]}>{changeOf(pr).text}</span>
                     <span class:list={['chip', review.chip]}>{review.text}</span>
                     {review.key !== 'approved' && approvalsOf(pr) > 0 && <span class="chip new">{approvalsOf(pr)} {approvalsOf(pr) === 1 ? 'approval' : 'approvals'}</span>}
                     {pr.mergeable === 'CONFLICTING' && <span class="chip warn">Merge conflicts</span>}

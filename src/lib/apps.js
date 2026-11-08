@@ -24,16 +24,19 @@ export const openPRsFor = (label) => prsByLabel.get(label);
 
 export const prHref = (label) => `/prs/${label}/`;
 
-// What a PR does to the label file. The tracker uses GitHub's changeType spelling.
+// What a PR does to the label file, with the chip class that colors it. The
+// tracker uses GitHub's changeType spelling, plus DISABLED for a PR that moves the
+// label from fragments/labels to fragments/disabled.
 const CHANGES = {
-  ADDED: { key: 'added', text: 'New label' },
-  MODIFIED: { key: 'modified', text: 'Label update' },
-  CHANGED: { key: 'modified', text: 'Label update' },
-  RENAMED: { key: 'renamed', text: 'Renamed label' },
-  COPIED: { key: 'added', text: 'New label' },
-  DELETED: { key: 'deleted', text: 'Label removal' },
+  ADDED: { key: 'added', text: 'New label', chip: 'new' },
+  MODIFIED: { key: 'modified', text: 'Label update', chip: 'plain' },
+  CHANGED: { key: 'modified', text: 'Label update', chip: 'plain' },
+  RENAMED: { key: 'renamed', text: 'Renamed label', chip: 'plain' },
+  COPIED: { key: 'added', text: 'New label', chip: 'new' },
+  DELETED: { key: 'deleted', text: 'Label removal', chip: 'warn' },
+  DISABLED: { key: 'disabled', text: 'Label disabled', chip: 'warn' },
 };
-export const changeOf = (pr) => CHANGES[pr.labelChange?.changeType] ?? { key: 'modified', text: 'Label change' };
+export const changeOf = (pr) => CHANGES[pr.labelChange?.changeType] ?? { key: 'modified', text: 'Label change', chip: 'plain' };
 
 // A PR's review state, with the chip class that colors it. A draft isn't ready
 // for review, so that wins over the review decision.

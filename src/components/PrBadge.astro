@@ -1,8 +1,9 @@
 ---
 // "Open PR" badge for a label with open Installomator pull requests. Renders
 // nothing for other labels. Pass `link` where the badge isn't already inside a
-// link (the title page); `detail` adds the PR number and review state.
-import { approvalsOf, openPRsFor, prHref, reviewOf } from '../lib/apps.js';
+// link (the title page); `detail` adds the PR number and review state. A PR that
+// would disable the label says so, since anyone installing it needs to know.
+import { approvalsOf, changeOf, openPRsFor, prHref, reviewOf } from '../lib/apps.js';
 
 interface Props {
   label: string;
@@ -13,11 +14,12 @@ const { label, link = false, detail = false } = Astro.props;
 const entry = openPRsFor(label);
 const prs = entry?.pullRequests ?? [];
 const one = prs.length === 1 ? prs[0] : undefined;
+const disabling = prs.some((pr) => changeOf(pr).key === 'disabled');
 const summary = prs.map((pr) => `#${pr.number} (${reviewOf(pr).text.toLowerCase()}${approvalsOf(pr) && reviewOf(pr).key !== 'approved' ? `, ${approvalsOf(pr)} approved` : ''})`).join(', ');
-const title = `${prs.length === 1 ? 'An open pull request changes' : `${prs.length} open pull requests change`} this label in Installomator: ${summary}`;
+const title = `${prs.length === 1 ? 'An open pull request changes' : `${prs.length} open pull requests change`} this label in Installomator${disabling ? ', disabling it' : ''}: ${summary}`;
 const text = detail && one
-  ? `Open PR #${one.number} · ${reviewOf(one).text}`
-  : prs.length === 1 ? 'Open PR' : `${prs.length} open PRs`;
+  ? `${disabling ? 'PR to disable' : 'Open PR'} #${one.number} · ${reviewOf(one).text}`
+  : `${prs.length === 1 ? 'Open PR' : `${prs.length} open PRs`}${disabling ? ' · disabling' : ''}`;
 const Tag = link ? 'a' : 'span';
 ---
 {entry && (

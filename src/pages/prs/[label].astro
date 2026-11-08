@@ -12,12 +12,14 @@ export function getStaticPaths() {
 const { entry } = Astro.props;
 const prs = entry.pullRequests;
 const onlyAdds = prs.every((pr) => changeOf(pr).key === 'added');
+const onlyDisables = prs.every((pr) => changeOf(pr).key === 'disabled');
 const reviewChip = { APPROVED: 'new', CHANGES_REQUESTED: 'warn' };
 const mergeText = { MERGEABLE: 'No conflicts', CONFLICTING: 'Has merge conflicts', UNKNOWN: 'Not yet known' };
 // The label file as it is in the PR's latest commit, on the contributor's fork.
+// A PR that disables the label moves the file, so labelChange.path is where it lands.
 const prFileUrl = (pr) =>
   pr.headRepository && pr.headCommit && changeOf(pr).key !== 'deleted'
-    ? `https://github.com/${pr.headRepository}/blob/${pr.headCommit}/${entry.labelFile}`
+    ? `https://github.com/${pr.headRepository}/blob/${pr.headCommit}/${pr.labelChange?.path ?? entry.labelFile}`
     : undefined;
 const prCount = prs.length === 1 ? 'An open pull request' : `${prs.length} open pull requests`;
 ---
@@ -34,7 +36,10 @@ const prCount = prs.length === 1 ? 'An open pull request' : `${prs.length} open 
       </p>
       <p class="summary">
         {prCount} on <a href={SOURCES.installomator}>Installomator</a>{' '}
-        {onlyAdds ? (prs.length === 1 ? 'adds this label.' : 'add this label.') : (prs.length === 1 ? 'changes this label.' : 'change this label.')}
+        {onlyAdds ? (prs.length === 1 ? 'adds this label.' : 'add this label.')
+          : onlyDisables ? (prs.length === 1 ? 'disables this label.' : 'disable this label.')
+          : (prs.length === 1 ? 'changes this label.' : 'change this label.')}
+        {prs.some((pr) => changeOf(pr).key === 'disabled') && ' Once merged, the label is moved out of Installomator\'s active labels and can no longer be installed.'}
         {!entry.hasPage && ' It isn\'t tracked yet, so it has no version history here. It will once a PR adding it is merged and the tracker resolves it.'}
       </p>
       <p class="links">
@@ -61,7 +66,7 @@ const prCount = prs.length === 1 ? 'An open pull request' : `${prs.length} open 
           <a href={pr.url} rel="noopener">{pr.title} <span class="num">#{pr.number}</span></a>
         </h2>
         <p class="chips">
-          <span class:list={['chip', change.key === 'added' ? 'new' : change.key === 'deleted' ? 'warn' : 'plain']}>{change.text}</span>
+          <span class:list={['chip', change.chip]}>{change.text}</span>
           <span class:list={['chip', review.chip]}>{review.text}</span>
           {review.key !== 'approved' && approvalsOf(pr) > 0 && <span class="chip new">{approvalsOf(pr)} {approvalsOf(pr) === 1 ? 'approval' : 'approvals'}</span>}
           {pr.isDraft && pr.reviewDecision && <span class="chip plain">{reviewOf({ ...pr, isDraft: false }).text}</span>}
@@ -80,7 +85,10 @@ const prCount = prs.length === 1 ? 'An open pull request' : `${prs.length} open 
             <dt>Change to this label</dt>
             <dd>
               {change.text}{' '}
-              <span class="diff"><span class="add">+{pr.labelChange.additions}</span> <span class="del">−{pr.labelChange.deletions}</span></span>
+              {change.key === 'disabled' && pr.labelChange.path && <span class="muted">(moved to <code>{pr.labelChange.path}</code>)</span>}
+              {(change.key !== 'disabled' || pr.labelChange.additions + pr.labelChange.deletions > 0) && (
+                <span class="diff"><span class="add">+{pr.labelChange.additions}</span> <span class="del">−{pr.labelChange.deletions}</span></span>
+              )}
             </dd>
           </div>
           <div><dt>Mergeable</dt><dd>{mergeText[pr.mergeable] ?? pr.mergeable ?? 'Not yet known'}</dd></div>
