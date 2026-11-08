@@ -17,7 +17,7 @@ Each title is identified by its Installomator label (for example \`googlechrome\
 - [Recent updates](${url('/')}): the newest versions found, grouped by day
 - [Browse](${url('/browse/')}): every title, with search and filters. Filters can be set in the URL with \`q\`, \`category\`, \`publisher\`, \`status\` (\`working\`, \`failing\` or \`skipped\`) and \`sort=updated\`, for example ${url('/browse/?status=failing')}
 - Title pages at \`${url('/app/')}<label>/\`: the app's publisher, category, description and links, its status, and its full version history with download URLs and team IDs
-- [Open label PRs](${url('/prs/')}): the ${labelPRs.length} labels that open pull requests on Installomator add, change or remove, with each PR's review state. Filters can be set in the URL with \`q\`, \`change\` (\`added\`, \`modified\` or \`deleted\`), \`review\` (\`review\`, \`changes\`, \`approved\` or \`draft\`) and \`sort\` (\`opened\` or \`name\`)
+- [Open label PRs](${url('/prs/')}): the ${labelPRs.length} labels that open pull requests on Installomator add, change, disable or remove, with each PR's review state. Filters can be set in the URL with \`q\`, \`change\` (\`added\`, \`modified\` or \`deleted\`), \`review\` (\`review\`, \`changes\`, \`approved\` or \`draft\`) and \`sort\` (\`opened\` or \`name\`)
 - PR pages at \`${url('/prs/')}<label>/\`: every open pull request changing that label, with its author, reviews, mergeability, CI checks and links to the PR on GitHub
 
 ## Data
