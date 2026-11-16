@@ -48,7 +48,7 @@ const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === a
       {latest ? (
         <p class="latest">
           {failing ? 'Last captured' : 'Latest'} <strong class="version">{latest.version}</strong>{' '}
-          <span class="muted">· seen {formatDate(latest.timeStamp)}</span>
+          <span class="muted">· seen {formatDate(latest.timeStamp)} UTC</span>
           {failing && (skipped ? <> <span class="chip">Skipped</span></> : <> <span class="chip warn">Not updating</span></>)}
         </p>
       ) : (
@@ -178,7 +178,7 @@ const publisherCount = app.publisher ? allTitles.filter((a) => a.publisher === a
         <thead>
           <tr>
             <th>Version</th>
-            <th>Seen</th>
+            <th>Seen (UTC)</th>
             <th>Download</th>
           </tr>
         </thead>
