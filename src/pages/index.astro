@@ -22,7 +22,8 @@ for (const r of recent) {
     </div>
     <p class="muted">
       The latest {RECENT_COUNT} versions picked up by the tracker, which checks every Installomator label 24 times a day.
-      Dates are when a version was first seen, not the vendor's release date.
+      Dates are when a version was first seen, not the vendor's release date, and are grouped by UTC (GMT) day,
+      so late in the day in the Americas, today's finds can appear under tomorrow's date.
     </p>
     <form action="/browse/" method="get" role="search">
       <input class="search" type="search" name="q" placeholder="Search by name, publisher, keyword or category" aria-label="Search titles" />
@@ -31,7 +32,7 @@ for (const r of recent) {
 
   {days.map(({ day, items }) => (
     <section class="day">
-      <h2>{formatDay(day)}</h2>
+      <h2>{formatDay(day)} <span class="tz">UTC</span></h2>
       <ul class="card release-list">
         {items.map((r) => (
           <li>
@@ -63,6 +64,7 @@ for (const r of recent) {
   .intro p { margin: 0 0 16px; max-width: 70ch; }
   .day { margin-bottom: 20px; }
   .day h2 { font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+  .day h2 .tz { font-weight: 500; opacity: .75; }
   .release-list { list-style: none; margin: 0; padding: 0; overflow: hidden; }
   .release-list li + li { border-top: 1px solid var(--border); }
   .release { display: flex; align-items: center; gap: 12px; padding: 10px 14px; color: var(--text); }
